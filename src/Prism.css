@@ -12,8 +12,9 @@
 }
 
 .HorizontalSpacing {
-    padding-right: 60px;
-    padding-left: 60px;
+    display: flex;
+    width: 120px;
+    justify-content: space-between;
 }
 
 .AutoColor {
@@ -28,8 +29,8 @@
     padding-top: 12px;
     padding-bottom: 12px;
     position: relative;
-    margin-right: 8px;
-    margin-left: 8px;
+    margin-right: 4px;
+    margin-left: 4px;
 }
 
 .Clickable {
@@ -40,12 +41,12 @@
 .EditableInput {
     width: 120px;
     border: 2px solid #007bff;
-    padding: 4px;
+    padding: 6px;
     font-size: 16px;
 }
 
 .EditableInput:focus {
-    width: 80px;
+    width: 60px;
     border: 1px solid #5cabff;
     padding: 4px;
     font-size: 16px;
