@@ -18,13 +18,14 @@ module AutoDefaultComponent = {
 /*
   EditableAuto component that manages an editable input within a box model.
   This component is implemented to handle both margins and paddings depending on the 
-  BoxContainer context. It takes an `onUpdate` function to send data to the backend 
-  when the input loses focus. The `data` parameter is used to initialize the 
-  component with data fetched from the backend.
+  BoxContainer context as the have the same data structure. It takes an `onUpdate` 
+  function to send data to the backend when the input loses focus. The `data` parameter
+  is used to initialize the component with data fetched from the backend.
 
   props:
   - onUpdate: a function that takes a string and returns unit. This is called 
-    whenever the input value changes and loses focus.
+    whenever the input value changes and loses focus to actively update the 
+    component props data.
   - data: a string representing the initial value fetched from the backend. 
     It can be "auto", a string representation of the current value, or None, 
     indicating an uninitialized state.
@@ -45,7 +46,7 @@ module EditableAuto = {
       None
     }, [data])
 
-    // handle making the component editable
+    // handle making the component editable to render an input instead of div
     let handleClick = (_event: ReactEvent.Mouse.t) => setIsEditing(_ => true)
     // handle losing focus on the editable component and send data to backend on losing focus
     let handleBlur = _event => {
@@ -62,7 +63,7 @@ module EditableAuto = {
       | None => setValue(_ => Some("auto"))
       }
     }
-    // handle the change event on the editable component
+    // handle the change event on the editable component to set the user input
     let handleChange = event => {
       let target = event->ReactEvent.Form.target
       let newValue = target["value"]
@@ -105,6 +106,10 @@ module EditableAuto = {
   box container component to render the margins box model and the paddings box model
   the margins are in the outer box separated vertically and horizontally
   the paddings are in the inner box (children) separated vertically and horizontally
+
+  in my opinion, this is good as we can visualize that they are just 2 boxes, and one
+  is wrapping the other (the margins box in this case). Making the component reusable
+  and easy to use for both margins and paddings
  */
 module BoxContainer = {
   @react.component
@@ -116,7 +121,7 @@ module BoxContainer = {
     ~onMarginChange: (string, string) => unit,
     ~onPaddingChange: (string, string) => unit,
   ) => {
-    // checks if the rendered component is the padding box or the margins box
+    // checks if the rendered component is the padding box or the margins box to know which one to update
     let data = isChild ? paddings : margins
     let onUpdate = isChild ? onPaddingChange : onMarginChange
     let {top, right, bottom, left} = switch data {
@@ -153,7 +158,8 @@ let updateComponentProperties = (id: string, properties: Js.Dict.t<Js.Json.t>): 
 module MarginsAndPadding = {
   @react.component
   let make = () => {
-    // initialize margins and paddings for a component
+    // initialize margins and paddings for a component as we would have the props data from the component be fetched from the backend
+    // then would be defaulted to auto if None
     let (margins: option<boxModel>, setMargins) = React.useState(_ => None)
     let (paddings: option<boxModel>, setPaddings) = React.useState(_ => None)
 
@@ -190,7 +196,7 @@ module MarginsAndPadding = {
       None
     }, [])
 
-    // generic function to update the box model with the new value depending on the side and isMargin
+    // reusable function to update the box model with the new value depending on the side and isMargin
     let updateBoxModel = (newValue: string, side: string, isMargin: bool) => {
       let updateFn = isMargin ? setMargins : setPaddings
 

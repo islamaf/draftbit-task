@@ -21,6 +21,8 @@ type method =
   | GET
   | PATCH
 
+// didn't want to use strings in the fetch function method, so did this function to get the method string repr by type
+// definitely there is a better way
 let methodToString = (m: method): string =>
   switch m {
   | GET => "GET"
@@ -30,6 +32,7 @@ let methodToString = (m: method): string =>
 // add body and method for PATCH function
 type options = {
   headers: Js.Dict.t<string>,
+  // optional as the GET request wouldn't have a body
   body: option<string>,
   method: string,
 }
