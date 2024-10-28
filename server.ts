@@ -27,7 +27,7 @@ const setupApp = (client: Client): express.Application => {
       "SELECT * FROM properties WHERE component_id = $1",
       [id]
     );
-    res.json(result.rows);
+    res.json(result.rows[0]);
   });
 
   // update the components properties from the backend depending on what was changed
