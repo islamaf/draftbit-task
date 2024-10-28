@@ -33,36 +33,29 @@ module AutoDefaultComponent = {
 module EditableAuto = {
   @react.component
   let make = (~onUpdate: string => unit, ~data: string) => {
-    let (value, setValue) = React.useState(_ => Some(data))
+    let (value, setValue) = React.useState(_ => data)
     let (isEditing, setIsEditing) = React.useState(_ => false)
 
     // get the updated value of the editable component
     React.useEffect1(() => {
-      if data == "" {
-        setValue(_ => Some("auto"))
-      } else {
-        setValue(_ => Some(data))
-      }
+      setValue(_ => data)
       None
     }, [data])
 
     // handle making the component editable to render an input instead of div
     let handleClick = (_event: ReactEvent.Mouse.t) => setIsEditing(_ => true)
+
     // handle losing focus on the editable component and send data to backend on losing focus
     let handleBlur = _event => {
       setIsEditing(_ => false)
-      switch value {
-      | Some(val) => {
-          if val != data {
-            onUpdate(val)
-          }
-          if Js.String2.length(val) == 0 {
-            setValue(_ => Some("auto"))
-          }
-        }
-      | None => setValue(_ => Some("auto"))
+      if value != data {
+        onUpdate(value)
+      }
+      if Js.String2.length(value) == 0 {
+        setValue(_ => "auto")
       }
     }
+
     // handle the change event on the editable component to set the user input
     let handleChange = event => {
       let target = event->ReactEvent.Form.target
@@ -77,10 +70,7 @@ module EditableAuto = {
           <input
             className="EditableInput"
             // check if a value exists, otherwise default to "auto"
-            value={switch value {
-            | Some(val) => val
-            | None => "auto"
-            }}
+            value={value}
             onChange={handleChange}
             onBlur={handleBlur}
             autoFocus=true
@@ -90,12 +80,11 @@ module EditableAuto = {
       | false =>
         // if not editing, show the value with metric in the box model
         switch value {
-        | Some("auto") => <AutoDefaultComponent handleClick />
-        | Some(val) =>
+        | "auto" => <AutoDefaultComponent handleClick />
+        | _ =>
           <div className="Clickable Changed" onClick={handleClick}>
-            {React.string(val)} {React.string("px")}
+            {React.string(value)} {React.string("px")}
           </div>
-        | None => <AutoDefaultComponent handleClick />
         }
       }}
     </div>
@@ -142,9 +131,7 @@ module BoxContainer = {
 }
 
 // updating the component properties by sending the data using fetch patch function
-let updateComponentProperties = (id: string, properties: Js.Dict.t<Js.Json.t>): Js.Promise.t<
-  Js.Json.t,
-> => {
+let updateComponentProperties = (id: string, properties: Js.Dict.t<Js.Json.t>): unit => {
   let url = `http://localhost:12346/components/${id}/properties`
   let headers = Js.Dict.empty()
   Js.Dict.set(headers, "Content-Type", "application/json")
@@ -152,6 +139,10 @@ let updateComponentProperties = (id: string, properties: Js.Dict.t<Js.Json.t>): 
   let body = Js.Json.stringify(Js.Json.object_(properties))
 
   Fetch.fetchPatch(~headers, url, body)
+  |> Js.Promise.then_(res => {
+    Js.Promise.resolve(res)
+  })
+  |> ignore
 }
 
 // Margings & Padding
@@ -167,27 +158,18 @@ module MarginsAndPadding = {
     React.useEffect1(() => {
       Fetch.fetchJson(`http://localhost:12346/components/1/properties`)
       |> Js.Promise.then_(data => {
-        let response = Obj.magic(data)
+        let response: Js.Dict.t<string> = Obj.magic(data)
 
-        // set the margins with the fetched data
-        setMargins(_ => {
-          Some({
-            top: response[0]["margin_top"],
-            right: response[0]["margin_right"],
-            bottom: response[0]["margin_bottom"],
-            left: response[0]["margin_left"],
-          })
+        let getSpacingValues = (prefix: string, res: Js.Dict.t<string>) => Some({
+          top: Js.Dict.get(res, prefix ++ "_top")->Belt.Option.getWithDefault("auto"),
+          right: Js.Dict.get(res, prefix ++ "_right")->Belt.Option.getWithDefault("auto"),
+          bottom: Js.Dict.get(res, prefix ++ "_bottom")->Belt.Option.getWithDefault("auto"),
+          left: Js.Dict.get(res, prefix ++ "_left")->Belt.Option.getWithDefault("auto"),
         })
 
-        // set the paddings with the fetched data
-        setPaddings(_ => {
-          Some({
-            top: response[0]["padding_top"],
-            right: response[0]["padding_right"],
-            bottom: response[0]["padding_bottom"],
-            left: response[0]["padding_left"],
-          })
-        })
+        // set margins and paddings using the first element of the response array
+        setMargins(_ => getSpacingValues("margin", response))
+        setPaddings(_ => getSpacingValues("padding", response))
 
         Js.Promise.resolve(None)
       })
@@ -199,43 +181,16 @@ module MarginsAndPadding = {
     // reusable function to update the box model with the new value depending on the side and isMargin
     let updateBoxModel = (newValue: string, side: string, isMargin: bool) => {
       let updateFn = isMargin ? setMargins : setPaddings
+      let prefix = isMargin ? "margin" : "padding"
 
-      updateFn(currentBoxModel => {
-        let currentValues = switch currentBoxModel {
-        | Some(m) => m
-        | None => {top: "auto", right: "auto", bottom: "auto", left: "auto"}
-        }
-
-        let updatedValues: boxModel = switch side {
-        | "top" => {...currentValues, top: newValue}
-        | "right" => {...currentValues, right: newValue}
-        | "bottom" => {...currentValues, bottom: newValue}
-        | "left" => {...currentValues, left: newValue}
-        | _ => currentValues
-        }
-
+      updateFn(_ => {
         let properties = Js.Dict.empty()
-        if isMargin {
-          Js.Dict.set(properties, "margin_top", Js.Json.string(updatedValues.top))
-          Js.Dict.set(properties, "margin_right", Js.Json.string(updatedValues.right))
-          Js.Dict.set(properties, "margin_bottom", Js.Json.string(updatedValues.bottom))
-          Js.Dict.set(properties, "margin_left", Js.Json.string(updatedValues.left))
-        } else {
-          Js.Dict.set(properties, "padding_top", Js.Json.string(updatedValues.top))
-          Js.Dict.set(properties, "padding_right", Js.Json.string(updatedValues.right))
-          Js.Dict.set(properties, "padding_bottom", Js.Json.string(updatedValues.bottom))
-          Js.Dict.set(properties, "padding_left", Js.Json.string(updatedValues.left))
-        }
+        Js.Dict.set(properties, prefix ++ "_" ++ side, Js.Json.string(newValue))
 
         // send the updated properties to the backend for the component of id = 1 (for test purposes)
         updateComponentProperties("1", properties)
-        |> Js.Promise.then_(res => {
-          res->Js.log
-          Js.Promise.resolve(updatedValues)
-        })
-        |> ignore
 
-        Some(updatedValues)
+        None
       })
     }
 
